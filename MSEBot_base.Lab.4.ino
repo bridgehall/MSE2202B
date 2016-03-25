@@ -7,9 +7,10 @@
 
 Servo servo_RightMotor;
 Servo servo_LeftMotor;
-Servo servo_ArmMotor;    
-Servo servo_GripMotor;
-Servo servo_WristMotor;
+Servo servo_ArmServoLeft;
+Servo servo_ArmServoRight;
+Servo servo_GripServo;
+Servo servo_WristServo;
 
 I2CEncoder encoder_RightMotor;
 I2CEncoder encoder_LeftMotor;
@@ -34,13 +35,14 @@ const int pin_HallEffect_rightCl = 4;
 const int pin_HallEffect_leftCl = 5;
 const int pin_HallEffect_rightCh = 6;
 const int pin_HallEffect_middleCh = 7;
-const int pin_HallEffect_leftCh = 8;
+const int pin_HallEffect_leftCh = 8; ///*****************arm motor plugged into this one
 const int pin_Mode_Button = 7;
 const int pin_Right_Motor = 9;
 const int pin_Left_Motor = 10;
-const int pin_Arm_Motor = 11;
-const int pin_Wrist_Motor = 12;
-const int pin_Grip_Motor = 13;
+const int pin_Arm_Servo_Right = 11;
+const int pin_Arm_Servo_Left = 8;
+const int pin_Wrist_Servo = 12;
+const int pin_Grip_Servo = 13;
 const int pin_Right_Line_Tracker = A0;
 const int pin_Middle_Line_Tracker = A1;
 const int pin_Left_Line_Tracker = A2;
@@ -55,36 +57,19 @@ const int CP_Middle_Line_Tracker_LED = 9;
 const int CP_Left_Line_Tracker_LED = 12;
 
 //constants
-
 // EEPROM addresses
-const int Left_Line_Tracker_Dark_Address_L = 0;
-const int Left_Line_Tracker_Dark_Address_H = 1;
-const int Left_Line_Tracker_Light_Address_L = 2;
-const int Left_Line_Tracker_Light_Address_H = 3;
-const int Middle_Line_Tracker_Dark_Address_L = 4;
-const int Middle_Line_Tracker_Dark_Address_H = 5;
-const int Middle_Line_Tracker_Light_Address_L = 6;
-const int Middle_Line_Tracker_Light_Address_H = 7;
-const int Right_Line_Tracker_Dark_Address_L = 8;
-const int Right_Line_Tracker_Dark_Address_H = 9;
-const int Right_Line_Tracker_Light_Address_L = 10;
-const int Right_Line_Tracker_Light_Address_H = 11;
+const int const_Grip_Servo_Open = 120;    
+const int const_Grip_Servo_Closed = 45;
+    
+const int const_LeftArm_Servo_Down = 55;  
+const int const_LeftArm_Servo_Up = 120;
+const int const_RightArm_Servo_Down = 55;  
+const int const_RightArm_Servo_Up = 120; 
 
-const int Left_Motor_Offset_Address_L = 12;
-const int Left_Motor_Offset_Address_H = 13;
-const int Right_Motor_Offset_Address_L = 14;
-const int Right_Motor_Offset_Address_H = 15;
-
-const int const_Grip_Motor_Open = 140;    
-const int const_Grip_Motor_Closed = 90;      
-const int const_Arm_Servo_Retracted = 55;      
-const int const_Arm_Servo_Extended = 120;      
-const int const_Display_Time = 500;
-const int const_Line_Tracker_Calibration_Interval = 100;
-const int const_Line_Tracker_Cal_Measures = 20;
-const int const_Line_Tracker_Tolerance = 50;  
-const int const_Motor_Calibration_Cycles = 3;
-const int const_Motor_Calibration_Time = 5000;
+const int const_Wrist_Servo_Down = 25; 
+const int const_Wrist_Servo_Middle = 100;    
+const int const_Wrist_Servo_Up = 170; 
+ 
 
 //variables
 byte b_LowByte;
@@ -148,12 +133,12 @@ void setup() {
   servo_LeftMotor.attach(pin_Left_Motor);
 
   // set up arm motors
-  pinMode(pin_Arm_Motor, OUTPUT);
-  servo_ArmMotor.attach(pin_Arm_Motor);
-  pinMode(pin_Grip_Motor, OUTPUT);
-  servo_GripMotor.attach(pin_Grip_Motor);
-  pinMode(pin_Wrist_Motor, OUTPUT);
-  servo_WristMotor.attach(pin_Wrist_Motor);
+  pinMode(pin_Arm_Servo, OUTPUT);
+  servo_ArmServo.attach(pin_Arm_Servo);
+  pinMode(pin_Grip_Servo, OUTPUT);
+  servo_GripServo.attach(pin_Grip_Servo);
+  pinMode(pin_Wrist_Servo, OUTPUT);
+  servo_WristServo.attach(pin_Wrist_Servo);
 
 
   // set up encoders. Must be initialized in order that they are chained together, 
@@ -223,15 +208,14 @@ void loop()
   {
     case 0:    //Robot stopped
     {
-      readLineTrackers();
       UltrasonicPing();
       servo_LeftMotor.write(1500); 
       servo_RightMotor.write(1500); 
       
        //detach the claw and arm motors
-       servo_GripMotor.detach();
-       servo_WristMotor.detach();
-       servo_ArmMotor.detach();
+       servo_GripServo.detach();
+       servo_WristServo.detach();
+       servo_ArmServo.detach();
 
        //zero the encoder
       encoder_LeftMotor.zero();
@@ -244,17 +228,25 @@ void loop()
     case 1:  //Robot drive straight
     {
        //turn off the grip motor
-       servo_GripMotor.detach();
-       servo_WristMotor.detach();
-       servo_ArmMotor.detach();
+       //servo_GripServo.detach();
+       servo_WristServo.detach();
+       servo_ArmServo.detach();
       
       //turn the motors on, drive straight until the bumper switch is hit
-      servo_LeftMotor.write(1700); 
-      servo_RightMotor.write(1700); 
+      //servo_LeftMotor.write(1700); 
+      //servo_RightMotor.write(1700); 
+
+      servo_GripServo.write(const_Grip_Servo_Open);
 
       break;
     } 
 
+    case 2:
+    {
+
+      GripServo();
+      
+    }
 
 
 
@@ -319,3 +311,16 @@ void UltrasonicPing()
 #endif
 }  
 
+
+
+//function to simply pick up tesseracts
+void GripServo()
+{
+      servo_WristServo.write(const_Wrist_Servo_Middle);
+      servo_GripServo.write(const_Grip_Servo_Open);
+      delay(1000);
+      servo_WristServo.write(const_Wrist_Servo_Down);
+      delay(1000);
+      servo_GripServo.write(const_Grip_Servo_Closed);
+  
+}
